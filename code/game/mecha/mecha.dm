@@ -2225,34 +2225,22 @@ assassination method if you time it right*/
 	if(!isAI(user))
 		return
 	//Allows the Malf to scan a mech's status and loadout, helping it to decide if it is a worthy chariot.
-	if(user.can_dominate_mechs)
-		examine(user) //Get diagnostic information!
-		for(var/obj/item/mecha_parts/mecha_tracking/B in trackers)
-			to_chat(user, "<span class='danger'>Warning: Tracking Beacon detected. Enter at your own risk. Beacon Data:</span>")
-			to_chat(user, "[B.get_mecha_info()]")
-			break
-		//Nothing like a big, red link to make the player feel powerful!
-		to_chat(user, "<a href='?src=[REF(user)];ai_take_control=[REF(src)]'><span class='userdanger'>ASSUME DIRECT CONTROL?</span></a><br>")
-	else
-		examine(user)
-		if(occupant)
-			to_chat(user, "<span class='warning'>This exosuit has a pilot and cannot be controlled.</span>")
-			return
-		var/can_control_mech = 0
-		for(var/obj/item/mecha_parts/mecha_tracking/ai_control/A in trackers)
-			can_control_mech = 1
-			to_chat(user, "<span class='notice'>[icon2html(src, user)] Status of [name]:</span>\n[A.get_mecha_info()]")
-			break
-		if(!can_control_mech)
-			to_chat(user, "<span class='warning'>You cannot control exosuits without AI control beacons installed.</span>")
-			return
-		to_chat(user, "<a href='?src=[REF(user)];ai_take_control=[REF(src)]'><span class='boldnotice'>Take control of exosuit?</span></a><br>")
-
-/obj/mecha/transfer_ai(interaction, mob/user, mob/living/silicon/ai/AI, obj/item/aicard/card)
-	if(!..())
+	examine(user)
+	if(occupant)
+		to_chat(user, "<span class='warning'>This exosuit has a pilot and cannot be controlled.</span>")
 		return
+	var/can_control_mech = 0
+	var/obj/item/mecha_parts/mecha_equipment/tool/ai_holder/AH = locate() in src
+	if (AH)
+		can_control_mech = 1
+		to_chat(user, "<span class='notice'>[name]:</span>\n Remote Controllable")
+	if(!can_control_mech)
+		to_chat(user, "<span class='warning'>You cannot control exosuits without AI control beacons installed.</span>")
+		return
+	//to_chat(user, "<a href='?src=[REF(user)];ai_take_control=[REF(src)]'><span class='boldnotice'>Take control of exosuit?</span></a><br>")
 
  //Transfer from core or card to mech. Proc is called by mech.
+/*
 	switch(interaction)
 		if(AI_TRANS_TO_CARD) //Upload AI from mech to AI card.
 			if(!state) //Mech must be in maint mode to allow carding.
@@ -2276,16 +2264,6 @@ assassination method if you time it right*/
 			icon_state = initial(icon_state)+"-open"
 			to_chat(AI, "You have been downloaded to a mobile storage device. Wireless connection offline.")
 			to_chat(user, "<span class='boldnotice'>Transfer successful</span>: [AI.name] ([rand(1000,9999)].exe) removed from [name] and stored within local memory.")
-
-		if(AI_MECH_HACK) //Called by AIs on the mech
-			AI.linked_core = new /obj/structure/AIcore/deactivated(AI.loc)
-			if(AI.can_dominate_mechs)
-				if(occupant) //Oh, I am sorry, were you using that?
-					to_chat(AI, "<span class='warning'>Pilot detected! Forced ejection initiated!</span>")
-					to_chat(occupant, "<span class='danger'>You have been forcibly ejected!</span>")
-					go_out(1) //IT IS MINE, NOW. SUCK IT, RD!
-			ai_enter_mech(AI, interaction)
-
 		if(AI_TRANS_FROM_CARD) //Using an AI card to upload to a mech.
 			AI = card.AI
 			if(!AI)
@@ -2304,48 +2282,18 @@ assassination method if you time it right*/
 			to_chat(user, "<span class='boldnotice'>Transfer successful</span>: [AI.name] ([rand(1000,9999)].exe) installed and executed successfully. Local copy has been removed.")
 			card.AI = null
 			ai_enter_mech(AI, interaction)
+*/
 
 //Hack and From Card interactions share some code, so leave that here for both to use.
 /obj/mecha/proc/ai_enter_mech(mob/living/silicon/ai/AI, interaction)
-	AI.ai_restore_power()
 	AI.forceMove(src)
 	occupant = AI
-	silicon_pilot = TRUE
 	icon_state = initial(icon_state)
 	update_icon()
 	playsound(src, 'sound/machines/windowdoor.ogg', 50, 1)
-	if(!internal_damage)
-		SEND_SOUND(occupant, sound('sound/mecha/nominal.ogg',volume=50))
 	AI.cancel_camera()
 	AI.controlled_mech = src
-	AI.remote_control = src
-	AI.mobility_flags = ALL //Much easier than adding AI checks! Be sure to set this back to 0 if you decide to allow an AI to leave a mech somehow.
-	AI.can_shunt = 0 //ONE AI ENTERS. NO AI LEAVES.
-	to_chat(AI, AI.can_dominate_mechs ? "<span class='announce'>Takeover of [name] complete! You are now loaded onto the onboard computer. Do not attempt to leave the station sector!</span>" :\
-		"<span class='notice'>You have been uploaded to a mech's onboard computer.</span>")
+	AI.reset_view()
+	to_chat(AI, "<span class='notice'>You have been uploaded to a mech's onboard computer.</span>")
 	to_chat(AI, "<span class='reallybig boldnotice'>Use Middle-Mouse to activate mech functions and equipment. Click normally for AI interactions.</span>")
-	if(interaction == AI_TRANS_FROM_CARD)
-		GrantActions(AI, FALSE) //No eject/return to core action for AI uploaded by card
-	else
-		GrantActions(AI, !AI.can_dominate_mechs)
-
-
-//An actual AI (simple_animal mecha pilot) entering the mech
-/obj/mecha/proc/aimob_enter_mech(mob/living/simple_animal/hostile/syndicate/mecha_pilot/pilot_mob)
-	if(pilot_mob && pilot_mob.Adjacent(src))
-		if(occupant)
-			return
-		icon_state = initial(icon_state)
-		occupant = pilot_mob
-		pilot_mob.mecha = src
-		pilot_mob.forceMove(src)
-		GrantActions(pilot_mob)//needed for checks, and incase a badmin puts somebody in the mob
-
-/obj/mecha/proc/aimob_exit_mech(mob/living/simple_animal/hostile/syndicate/mecha_pilot/pilot_mob)
-	if(occupant == pilot_mob)
-		occupant = null
-	if(pilot_mob.mecha == src)
-		pilot_mob.mecha = null
-	icon_state = "[initial(icon_state)]-open"
-	pilot_mob.forceMove(get_turf(src))
-	RemoveActions(pilot_mob)
+//	GrantActions(AI, FALSE) //No eject/return to core action for AI uploaded by card
