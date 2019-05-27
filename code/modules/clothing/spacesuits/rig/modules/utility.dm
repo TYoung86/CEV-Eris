@@ -110,7 +110,7 @@
 	desc = "A complex web of tubing and needles suitable for hardsuit use."
 	icon_state = "injector"
 	usable = 1
-	selectable = 0
+	selectable = 1
 	toggleable = 0
 	disruptive = 0
 
