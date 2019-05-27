@@ -331,6 +331,7 @@ var/list/ai_verbs_default = list(
 	..()
 	use_power(1) // Just incase we need to wake up the power system.
 
+
 /obj/machinery/ai_powersupply/Destroy()
 	. = ..()
 	powered_ai = null
@@ -469,7 +470,57 @@ var/list/ai_verbs_default = list(
 			src << "\red System error. Cannot locate [rhtml_decode(href_list["trackname"])]."
 		return
 
+
+	if (href_list["ai_take_control"]) //Mech domination
+		var/obj/mecha/M = locate(href_list["ai_take_control"]) in GLOB.mechas_list
+		if (!M)
+			return
+
+		var/mech_has_controlbeacon = FALSE
+		for(var/obj/item/mecha_parts/mecha_tracking/ai_control/A in M.trackers)
+			mech_has_controlbeacon = TRUE
+			break
+		if(!can_dominate_mechs && !mech_has_controlbeacon)
+			message_admins("Warning: possible href exploit by [key_name(usr)] - attempted control of a mecha without can_dominate_mechs or a control beacon in the mech.")
+			log_game("Warning: possible href exploit by [key_name(usr)] - attempted control of a mecha without can_dominate_mechs or a control beacon in the mech.")
+			return
+
+		if(controlled_mech)
+			to_chat(src, "<span class='warning'>You are already loaded into an onboard computer!</span>")
+			return
+		if(!GLOB.cameranet.checkCameraVis(M))
+			to_chat(src, "<span class='warning'>Exosuit is no longer near active cameras.</span>")
+			return
+		if(!isturf(loc))
+			to_chat(src, "<span class='warning'>You aren't in your core!</span>")
+			return
+		if(M)
+			M.transfer_ai(AI_MECH_HACK, src, usr) //Called om the mech itself.
 	return
+
+
+/mob/living/silicon/ai/transfer_ai(interaction, mob/user, mob/living/silicon/ai/AI, obj/item/aicard/card)
+	if(!..())
+		return
+	if(interaction == AI_TRANS_TO_CARD)//The only possible interaction. Upload AI mob to a card.
+		if(!can_be_carded)
+			to_chat(user, "<span class='boldwarning'>Transfer failed.</span>")
+			return
+		disconnect_shell() //If the AI is controlling a borg, force the player back to core!
+		if(!mind)
+			to_chat(user, "<span class='warning'>No intelligence patterns detected.</span>"    )
+			return
+		//ShutOffDoomsdayDevice()
+		var/obj/structure/AIcore/new_core = new /obj/structure/AIcore/deactivated(loc)//Spawns a deactivated terminal at AI location.
+		new_core.circuit.battery = battery
+		//ai_restore_power()//So the AI initially has power.
+		control_disabled = TRUE //Can't control things remotely if you're stuck in a card!
+		radio_enabled = FALSE 	//No talking on the built-in radio for you either!
+		forceMove(card)
+		card.AI = src
+		to_chat(src, "You have been downloaded to a mobile storage device. Remote device connection severed.")
+		to_chat(user, "<span class='boldnotice'>Transfer successful</span>: [name] ([rand(1000,9999)].exe) removed from host terminal and stored within local memory.")
+
 
 /mob/living/silicon/ai/reset_view(atom/A)
 	if(controlled_mech)

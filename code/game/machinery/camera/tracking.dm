@@ -90,6 +90,11 @@
 	stored_locations.Remove(loc)
 	src << "Location [loc] removed"
 
+/mob/living/silicon/ai/forceMove(atom/destination)
+	. = ..()
+	if(.)
+		end_multicam()
+
 // Used to allow the AI is write in mob names/camera name from the CMD line.
 /datum/trackable
 	var/list/names = list()
