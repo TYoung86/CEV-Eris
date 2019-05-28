@@ -132,7 +132,6 @@ var/list/ai_verbs_default = list(
 	if(controlled_mech)
 		controlled_mech.view_stats()
 
-
 /mob/living/silicon/ai/proc/AIeject()
 	set name = "AI Eject"
 	set category = "Exosuit Interface"
@@ -469,31 +468,6 @@ var/list/ai_verbs_default = list(
 		else
 			src << "\red System error. Cannot locate [rhtml_decode(href_list["trackname"])]."
 		return
-/*
-	if (href_list["ai_take_control"]) //Mech domination
-		var/obj/mecha/M = locate(href_list["ai_take_control"]) in GLOB.mechas_list
-		if (!M)
-			return
-
-		var/mech_has_controlbeacon = FALSE
-		for(var/obj/item/mecha_parts/mecha_equipment/tool/ai_holder/AH in M.trackers)
-			mech_has_controlbeacon = TRUE
-			break
-		if(!mech_has_controlbeacon)
-			message_admins("Warning: possible href exploit by [key_name(usr)] - attempted control of a mecha without a control beacon in the mech.")
-			log_game("Warning: possible href exploit by [key_name(usr)] - attempted control of a mecha without a control beacon in the mech.")
-			return
-
-		if(controlled_mech)
-			to_chat(src, "<span class='warning'>You are already loaded into an onboard computer!</span>")
-			return
-		if(!GLOB.cameranet.checkCameraVis(M))
-			to_chat(src, "<span class='warning'>Exosuit is no longer near active cameras.</span>")
-			return
-		if(!isturf(loc))
-			to_chat(src, "<span class='warning'>You aren't in your core!</span>")
-			return
-*/
 	return
 
 

@@ -23,7 +23,7 @@
 	infra_luminosity = 15 //byond implementation is bugged.
 	var/initial_icon = null //Mech type for resetting icon. Only used for reskinning kits (see custom items)
 	var/can_move = 1
-	var/mob/living/carbon/occupant = null
+	var/mob/living/occupant = null
 	var/list/dropped_items = list()
 
 	var/health = 300 //health is health
@@ -1214,6 +1214,12 @@ assassination method if you time it right*/
 	set name = "Enter Exosuit"
 	set src in oview(1)
 
+	if (isAI(usr))
+		var/obj/item/mecha_parts/mecha_equipment/tool/ai_holder/AH = locate() in src
+		if (AH)
+			AH.interact(usr)
+		return
+
 	if (usr.stat || !ishuman(usr))
 		return
 
@@ -1227,6 +1233,7 @@ assassination method if you time it right*/
 		if(C.handcuffed)
 			usr << SPAN_DANGER("Kinda hard to climb in while handcuffed don't you think?")
 			return
+
 	if (src.occupant)
 		usr << sound('sound/mecha/UI_SCI-FI_Tone_Deep_Wet_15_stereo_error.ogg',channel = 4, volume = 100)
 		usr << SPAN_DANGER("The [src.name] is already occupied!")
@@ -1265,27 +1272,52 @@ assassination method if you time it right*/
 		usr << "You stop entering the exosuit."
 	return
 
-/obj/mecha/proc/moved_inside(var/mob/living/carbon/human/H as mob)
-	if(H && H.client && H in range(1))
-		H.reset_view(src)
-		/*
-		H.client.perspective = EYE_PERSPECTIVE
-		H.client.eye = src
-		*/
-		H.stop_pulling()
-		H.forceMove(src)
-		src.occupant = H
-		src.add_fingerprint(H)
-		src.forceMove(src.loc)
-		src.log_append_to_last("[H] moved in as pilot.")
-		src.update_icon()
-		set_dir(dir_in)
-		playsound(src, 'sound/machines/windowdoor.ogg', 50, 1)
-		if(!hasInternalDamage())
-			src.occupant << sound('sound/mecha/nominal.ogg',volume=50)
-		return 1
-	else
+
+/obj/mecha/proc/moved_inside(var/mob/living/U as mob)
+	if (!U)
 		return 0
+
+	if(src.occupant == U)
+		U.reset_view(src)
+		U.forceMove(src)
+		occupant = U
+		forceMove(src.loc)
+		update_icon()
+		return 1
+
+	if (isAI(U))
+		U.reset_view(src)
+		U.forceMove(src)
+		occupant = U
+		forceMove(src.loc)
+		log_append_to_last("[U] assumed remote control.")
+		U << "Assuming remote control of mech..."
+		update_icon()
+		playsound(src, 'sound/machines/windowdoor.ogg', 50, 1)
+		return 1
+
+	else if (ishuman(U))
+		if(U.client && U in range(1))
+			U.reset_view(src)
+			U.stop_pulling()
+			U.forceMove(src)
+			occupant = U
+			add_fingerprint(U)
+			forceMove(src.loc)
+			log_append_to_last("[U] moved in as pilot.")
+			update_icon()
+			set_dir(dir_in)
+			playsound(src, 'sound/machines/windowdoor.ogg', 50, 1)
+			if(!hasInternalDamage())
+				src.occupant << sound('sound/mecha/nominal.ogg',volume=50)
+			return 1
+		else
+			return 0
+	if (U == usr)
+		usr << "Couldn't enter the [.]."
+	else
+		log_append_to_last("ERROR: Anomalous entry request.")
+	return 0
 
 /obj/mecha/verb/view_stats()
 	set name = "View Stats"
@@ -1297,15 +1329,6 @@ assassination method if you time it right*/
 	//pr_update_stats.start()
 	src.occupant << browse(src.get_stats_html(), "window=exosuit")
 	return
-
-/*
-/obj/mecha/verb/force_eject()
-	set category = "Object"
-	set name = "Force Eject"
-	set src in view(5)
-	src.go_out()
-	return
-*/
 
 /obj/mecha/verb/eject()
 	set name = "Eject"
@@ -1359,11 +1382,7 @@ assassination method if you time it right*/
 
 		src.log_message("[mob_container] moved out.")
 		occupant.reset_view()
-		/*
-		if(src.occupant.client)
-			src.occupant.client.eye = src.occupant.client.mob
-			src.occupant.client.perspective = MOB_PERSPECTIVE
-		*/
+
 		src.occupant << browse(null, "window=exosuit")
 		if(istype(mob_container, /obj/item/device/mmi))
 			var/obj/item/device/mmi/mmi = mob_container
@@ -1378,34 +1397,9 @@ assassination method if you time it right*/
 
 
 	if(mob_container.forceMove(src.loc))//ejecting mob container
-	/*
-		if(ishuman(occupant) && (return_pressure() > HAZARD_HIGH_PRESSURE))
-			use_internal_tank = 0
-			var/datum/gas_mixture/environment = get_turf_air()
-			if(environment)
-				var/env_pressure = environment.return_pressure()
-				var/pressure_delta = (cabin.return_pressure() - env_pressure)
-		//Can not have a pressure delta that would cause environment pressure > tank pressure
-
-				var/transfer_moles = 0
-				if(pressure_delta > 0)
-					transfer_moles = pressure_delta*environment.volume/(cabin.return_temperature() * R_IDEAL_GAS_EQUATION)
-
-			//Actually transfer the gas
-					var/datum/gas_mixture/removed = cabin.air_contents.remove(transfer_moles)
-					loc.assume_air(removed)
-
-			occupant.SetStunned(5)
-			occupant.SetWeakened(5)
-			occupant << "You were blown out of the mech!"
-	*/
+	
 		src.log_message("[mob_container] moved out.")
 		occupant.reset_view()
-		/*
-		if(src.occupant.client)
-			src.occupant.client.eye = src.occupant.client.mob
-			src.occupant.client.perspective = MOB_PERSPECTIVE
-		*/
 		src.occupant << browse(null, "window=exosuit")
 		if(istype(mob_container, /obj/item/device/mmi))
 			var/obj/item/device/mmi/mmi = mob_container
